@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanvas — Premium Sales Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+/* ===== CSS VARIABEL UNTUK MODE TERANG (DEFAULT) & GELAP ===== */
+:root {
+  --bg: #F8FAFC; --panel: #FFFFFF; --panel-2: #F1F5F9; --line: #E2E8F0;
+  --paper: #0F172A; --muted: #64748B; --brand: #3B82F6; --brand-soft: rgba(59,130,246,.15);
+  --amber: #F59E0B; --green: #10B981; --red: #EF4444; --violet: #8B5CF6; 
+  --shadow: 0 4px 6px -1px rgba(0,0,0,0.05); --radius: 12px;
+  --font-display: 'Space Grotesk', sans-serif; --font-body: 'Inter', sans-serif; --font-mono: 'IBM Plex Mono', monospace;
+}
+
+/* KETIKA MODE GELAP AKTIF */
+[data-theme="dark"] {
+  --bg: #0F172A; --panel: #1E293B; --panel-2: #334155; --line: #334155;
+  --paper: #F8FAFC; --muted: #94A3B8; --shadow: 0 4px 6px -1px rgba(0,0,0,0.4);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; transition: background-color 0.3s, border-color 0.3s; }
+body { background: var(--bg); color: var(--paper); font-family: var(--font-body); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.app { max-width: 1440px; margin: 0 auto; padding: 20px 24px 60px; }
+
+/* HEADER & THEME TOGGLE */
+.topbar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px dashed var(--line); flex-wrap: wrap; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark { width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(145deg, var(--brand), var(--violet)); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 16px; color: #fff; }
+.brand-text h1 { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
+.brand-text p { font-size: 11.5px; color: var(--muted); font-family: var(--font-mono); margin-top: 2px; }
+.top-actions { display: flex; align-items: center; gap: 12px; }
+.live-pill { display: flex; align-items: center; gap: 7px; font-family: var(--font-mono); font-size: 11px; color: var(--green); background: rgba(16,185,129,.15); border: 1px solid rgba(16,185,129,.3); padding: 6px 12px; border-radius: 100px; font-weight: 600;}
+.theme-toggle { background: var(--panel-2); border: 1px solid var(--line); color: var(--paper); border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+
+/* FILTERS */
+.filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin-bottom: 20px; box-shadow: var(--shadow); }
+.filter-group { display: flex; flex-direction: column; }
+.filters label { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; font-family: var(--font-mono); }
+.filters select { background: var(--panel-2); border: 1px solid var(--line); color: var(--paper); border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: var(--font-body); min-width: 150px; outline: none; }
+.filters select:focus { border-color: var(--brand); }
+.reset-btn { background: var(--panel-2); border: 1px solid var(--line); color: var(--paper); padding: 8px 16px; border-radius: 8px; font-size: 12.5px; cursor: pointer; font-family: var(--font-body); margin-left: auto; font-weight: 500; }
+
+/* KPI CARDS */
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 26px; }
+.kpi-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; position: relative; overflow: hidden; box-shadow: var(--shadow); }
+.kpi-card::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: var(--brand); opacity: 0.8;}
+.kpi-card:nth-child(2)::after { background: var(--violet); }
+.kpi-card:nth-child(3)::after { background: var(--amber); }
+.kpi-card:nth-child(4)::after { background: var(--green); }
+.kpi-card:nth-child(5)::after { background: var(--red); }
+.kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; font-family: var(--font-mono); margin-bottom: 8px; }
+.kpi-value { font-family: var(--font-display); font-size: 24px; font-weight: 700; color: var(--paper); }
+
+/* TABS */
+.tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab-btn { background: none; border: none; color: var(--muted); font-family: var(--font-body); font-size: 14px; font-weight: 600; padding: 10px 16px; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; margin-bottom: -2px; }
+.tab-btn.active { color: var(--brand); border-bottom-color: var(--brand); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; animation: fadein .4s ease; }
+@keyframes fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* LAYOUT & CARDS */
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+.card-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+.chart-box { position: relative; height: 280px; width: 100%; }
+#map { height: 350px; border-radius: 8px; z-index: 1; }
+
+/* KANBAN BOARD */
+.kanban { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; align-items: start; }
+.kanban-col { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.kanban-col-head { display: flex; justify-content: space-between; font-size: 12px; font-family: var(--font-mono); font-weight: 600; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; padding: 0 4px; }
+.kcard { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 10px; box-shadow: var(--shadow); transition: transform 0.2s; }
+.kcard:hover { transform: translateY(-2px); border-color: var(--brand); }
+.kcard-title { font-weight: 600; font-size: 13.5px; margin-bottom: 8px; color: var(--paper); }
+.kcard-info { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--muted); margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px; }
+
+/* TABLE CRM */
+.search-bar { width: 100%; background: var(--panel-2); border: 1px solid var(--line); color: var(--paper); border-radius: 8px; padding: 12px 16px; font-size: 14px; outline: none; margin-bottom: 16px; font-family: var(--font-body); }
+.search-bar:focus { border-color: var(--brand); }
+.table-responsive { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; padding: 12px 10px; border-bottom: 2px solid var(--line); white-space: nowrap; }
+tbody td { padding: 12px 10px; border-bottom: 1px solid var(--line); }
+tbody tr:hover { background: var(--panel-2); }
+
+/* BADGES */
+.badge { display: inline-block; padding: 4px 10px; border-radius: 100px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.b-green { background: rgba(16,185,129,.15); color: var(--green); border: 1px solid rgba(16,185,129,.3); }
+.b-red { background: rgba(239,68,68,.15); color: var(--red); border: 1px solid rgba(239,68,68,.3); }
+.b-amber { background: rgba(245,158,11,.15); color: var(--amber); border: 1px solid rgba(245,158,11,.3); }
+.b-brand { background: rgba(59,130,246,.15); color: var(--brand); border: 1px solid rgba(59,130,246,.3); }
+.b-violet { background: rgba(139,92,246,.15); color: var(--violet); border: 1px solid rgba(139,92,246,.3); }
+.b-muted { background: var(--line); color: var(--muted); }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+
+/* MOBILE RESPONSIVE */
+@media (max-width: 768px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .filters { flex-direction: column; align-items: stretch; }
+  .reset-btn { margin-left: 0; }
+  .topbar { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body data-theme="dark">
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">K</div>
+      <div class="brand-text">
+        <h1>Kanvas — Sales & Activity Dashboard</h1>
+        <p>OLSERA POS · 2 SUMBER DATA: CRM & SALES PIPELINE</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <div class="live-pill">LIVE</div>
+      <button class="theme-toggle" onclick="toggleTheme()" title="Ubah Mode Tampilan">☀️</button>
+    </div>
+  </div>
+
+  <div class="filters">
+    <div class="filter-group"><label>Periode Waktu</label><select id="fPeriode"><option value="all">Semua Waktu</option><option value="today">Hari Ini</option><option value="this_week">7 Hari Terakhir</option><option value="this_month">Bulan Ini</option><option value="this_year">Tahun Ini</option></select></div>
+    <div class="filter-group"><label>Area / Kantor</label><select id="fArea"><option value="all">Semua Area</option></select></div>
+    <div class="filter-group"><label>Sales PIC</label><select id="fSales"><option value="all">Semua Sales</option></select></div>
+    <button class="reset-btn" onclick="resetFilters()">↺ Reset Filter</button>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kpi-label">Total Kunjungan (CRM)</div><div class="kpi-value" id="kpi-visits">0</div></div>
+    <div class="kpi-card"><div class="kpi-label">Prospek Aktif</div><div class="kpi-value" id="kpi-leads">0</div></div>
+    <div class="kpi-card"><div class="kpi-label">Rasio CVR (Win Rate)</div><div class="kpi-value" style="color: var(--amber);" id="kpi-winrate">0%</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Deals Closing</div><div class="kpi-value" style="color: var(--green);" id="kpi-total-deals">0</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Omset (Revenue)</div><div class="kpi-value" style="color: var(--brand);" id="kpi-total-revenue">Rp 0</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="analytics">Performa & Analitik</button>
+    <button class="tab-btn" data-tab="activity">Aktivitas Lapangan (Peta & Rasio)</button>
+    <button class="tab-btn" data-tab="pipeline">Kanban Konversi</button>
+    <button class="tab-btn" data-tab="crm">CRM Database</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-analytics">
+    <div class="card" style="margin-bottom: 16px;"><div class="card-head"><div class="card-title">Tren Omset Penjualan Transaksi Valid</div></div><div class="chart-box"><canvas id="trendChart"></canvas></div></div>
+    <div class="grid-2">
+      <div class="card"><div class="card-head"><div class="card-title">Leaderboard Karyawan (Berdasarkan Omset)</div></div><div class="chart-box"><canvas id="leaderboardChart"></canvas></div></div>
+      <div class="card"><div class="card-head"><div class="card-title">Sebaran Pendapatan Area / Kantor</div></div><div class="chart-box"><canvas id="areaChart"></canvas></div></div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-activity">
+    <div class="card" style="margin-bottom: 16px;"><div class="card-head"><div class="card-title">Peta Geotagging Kunjungan (CRM)</div></div><div id="map"></div></div>
+    <div class="grid-2">
+      <div class="card"><div class="card-head"><div class="card-title">Status Rasio Aktivitas & Konversi</div></div><div class="chart-box"><canvas id="funnelChart"></canvas></div></div>
+      <div class="card"><div class="card-head"><div class="card-title">Sistem POS Sebelumnya (Kompetitor)</div></div><div class="chart-box"><canvas id="posChart"></canvas></div></div>
+    </div>
+  </div>
+  
+  <div class="tab-panel" id="tab-pipeline">
+    <div class="card"><div class="kanban" id="kanbanBoard"></div></div>
+  </div>
+  
+  <div class="tab-panel" id="tab-crm">
+    <div class="card">
+      <input type="text" class="search-bar" id="crmSearch" placeholder="🔍 Cari Nama Merchant, Sales, atau Area...">
+      <div class="table-responsive">
+        <table>
+          <thead><tr><th>Tanggal</th><th>Merchant</th><th>Kategori</th><th>Wilayah</th><th>Status</th><th>Sales PIC</th></tr></thead>
+          <tbody id="crmBody"><tr><td colspan="6" style="text-align:center;">Memuat data...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ==========================================
+// TOGGLE TEMA (DARK/LIGHT MODE)
+// ==========================================
+function toggleTheme() {
+  const body = document.body;
+  const currentTheme = body.getAttribute('data-theme');
+  const btn = document.querySelector('.theme-toggle');
+  
+  if (currentTheme === 'dark') {
+    body.setAttribute('data-theme', 'light');
+    btn.innerHTML = '🌙';
+  } else {
+    body.setAttribute('data-theme', 'dark');
+    btn.innerHTML = '☀️';
+  }
+  
+  // Refresh grafik agar warna font/grid mengikuti tema
+  Chart.defaults.color = currentTheme === 'dark' ? '#64748B' : '#8B92A6'; // Sesuaikan kontras
+  if(trendChartObj) { trendChartObj.update(); leaderboardChartObj.update(); areaChartObj.update(); funnelChartObj.update(); posChartObj.update(); }
+}
+
+
+// ==========================================
+// DATA & KONFIGURASI API
+// ==========================================
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbzIeIEEwNQORXPV8tZjUJwk7j4zP7N1SH_HffqmprLoP0s_zchv7tBLQfHvYN0tZ4vq/exec";
+
+let rawCrmData = [], rawSalesData = [];
+let mapObj = null, markersLayer = null, tileLayer = null;
+let trendChartObj, leaderboardChartObj, areaChartObj, funnelChartObj, posChartObj;
+
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.color = '#8B92A6';
+
+const formatRupiah = (number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
+
+function parseOmset(value) {
+    if (!value) return 0;
+    let cleanString = String(value).replace(/[^0-9]/g, '');
+    let num = parseFloat(cleanString);
+    return isNaN(num) ? 0 : num;
+}
+
+function getColumnKey(row, keywords) {
+    const keys = Object.keys(row || {});
+    return keys.find(k => keywords.some(keyword => k.toLowerCase().includes(keyword))) || '';
+}
+
+async function fetchGoogleSheetsData() {
+  try {
+    const response = await fetch(GOOGLE_API_URL);
+    if (!response.ok) throw new Error("Gagal");
+    const data = await response.json(); 
+    rawCrmData = data.crm || [];
+    rawSalesData = data.sales || [];
+    populateFilterOptions();
+    applyFilters();
+  } catch (error) {
+    console.error(error);
+    alert("Gagal memuat data. Periksa koneksi internet Anda.");
+  }
+}
+
+function populateFilterOptions() {
+  const areaSet = new Set(), salesSet = new Set();
+  const crmRow = rawCrmData[0] || {}, salesRow = rawSalesData[0] || {};
+  
+  const crmAreaKey = getColumnKey(crmRow, ['area', 'wilayah']), crmSalesKey = getColumnKey(crmRow, ['sales', 'karyawan']);
+  const salesAreaKey = getColumnKey(salesRow, ['area', 'kantor']), salesStaffKey = getColumnKey(salesRow, ['karyawan', 'sales']);
+
+  rawCrmData.forEach(row => { if(row[crmAreaKey]) areaSet.add(row[crmAreaKey]); if(row[crmSalesKey]) salesSet.add(row[crmSalesKey]); });
+  rawSalesData.forEach(row => { if(row[salesAreaKey]) areaSet.add(row[salesAreaKey]); if(row[salesStaffKey]) salesSet.add(row[salesStaffKey]); });
+
+  const areaSelect = document.getElementById('fArea'), salesSelect = document.getElementById('fSales');
+  areaSelect.innerHTML = '<option value="all">Semua Area</option>';
+  salesSelect.innerHTML = '<option value="all">Semua Sales</option>';
+
+  areaSet.forEach(a => { if(a.trim()) areaSelect.add(new Option(a, a)); });
+  salesSet.forEach(s => { if(s.trim()) salesSelect.add(new Option(s, s)); });
+}
+
+function resetFilters() { document.getElementById('fPeriode').value = 'all'; document.getElementById('fArea').value = 'all'; document.getElementById('fSales').value = 'all'; applyFilters(); }
+
+document.getElementById('fPeriode').addEventListener('change', applyFilters);
+document.getElementById('fArea').addEventListener('change', applyFilters);
+document.getElementById('fSales').addEventListener('change', applyFilters);
+
+// FUNGSI PENCARIAN CRM
+document.getElementById('crmSearch').addEventListener('input', applyFilters);
+
+function applyFilters() {
+  const valPeriod = document.getElementById('fPeriode').value;
+  const valArea = document.getElementById('fArea').value;
+  const valSales = document.getElementById('fSales').value;
+  const searchQuery = document.getElementById('crmSearch').value.toLowerCase();
+  const now = new Date();
+
+  const crmRow = rawCrmData[0] || {}, salesRow = rawSalesData[0] || {};
+  const crmDateKey = getColumnKey(crmRow, ['date', 'tanggal']), crmAreaKey = getColumnKey(crmRow, ['area', 'wilayah']), crmSalesKey = getColumnKey(crmRow, ['sales', 'pic']);
+  const salesDateKey = getColumnKey(salesRow, ['tanggal', 'waktu']), salesAreaKey = getColumnKey(salesRow, ['area', 'kantor']), salesStaffKey = getColumnKey(salesRow, ['karyawan', 'sales']);
+
+  const checkCondition = (row, keyDate, keyArea, keySales, isCrm = false) => {
+    let rArea = row[keyArea], rSales = row[keySales];
+    if (valArea !== 'all' && rArea !== valArea) return false;
+    if (valSales !== 'all' && rSales !== valSales) return false;
+    
+    // Pencarian Teks khusus untuk Tabel CRM
+    if (isCrm && searchQuery.trim() !== '') {
+        const textToSearch = `${row['Nama Merchant']||''} ${rSales||''} ${rArea||''}`.toLowerCase();
+        if(!textToSearch.includes(searchQuery)) return false;
+    }
+
+    if (valPeriod !== 'all') {
+      let rDate = row[keyDate];
+      if (!rDate) return false;
+      let d = new Date(rDate);
+      if (isNaN(d.getTime()) || d.getFullYear() < 2010) return false;
+      
+      if (valPeriod === 'today' && d.toDateString() !== now.toDateString()) return false;
+      if (valPeriod === 'this_week' && (Math.ceil(Math.abs(now - d) / (86400000)) > 7 || d > now)) return false;
+      if (valPeriod === 'this_month' && (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear())) return false;
+      if (valPeriod === 'this_year' && d.getFullYear() !== now.getFullYear()) return false;
+    }
+    return true;
+  };
+
+  const filteredCrm = rawCrmData.filter(row => checkCondition(row, crmDateKey, crmAreaKey, crmSalesKey, true));
+  const filteredSales = rawSalesData.filter(row => checkCondition(row, salesDateKey, salesAreaKey, salesStaffKey, false));
+
+  updateKPI(filteredCrm, filteredSales, salesRow);
+  renderAdvancedAnalytics(filteredSales, salesRow);
+  renderCRMCharts(filteredCrm);
+  renderKanban(filteredCrm, crmAreaKey, crmSalesKey);
+  renderCRM(filteredCrm, crmDateKey);
+  renderMap(filteredCrm);
+}
+
+// ==========================================
+// RENDER KPI & CHART UPDATED
+// ==========================================
+function updateKPI(crm, sales, salesRow) {
+    const totalVisits = crm.length;
+    const activeLeads = crm.filter(d => ['Lead','Demo','Quotation'].includes(d.Status)).length;
+    const totalDeals = sales.length;
+    
+    // Win Rate: (Total Deals Won / Total Kunjungan) * 100
+    const winRate = totalVisits > 0 ? Math.round((totalDeals / totalVisits) * 100) : 0;
+    
+    const omsetKey = getColumnKey(salesRow, ['omset', 'revenue', 'klaim']);
+    let totalRev = sales.reduce((sum, row) => sum + parseOmset(row[omsetKey]), 0);
+    
+    document.getElementById('kpi-visits').textContent = totalVisits;
+    document.getElementById('kpi-leads').textContent = activeLeads;
+    document.getElementById('kpi-winrate').textContent = winRate + '%';
+    document.getElementById('kpi-total-deals').textContent = totalDeals;
+    document.getElementById('kpi-total-revenue').textContent = formatRupiah(totalRev);
+}
+
+function renderAdvancedAnalytics(sales, salesRow) {
+    const trendMap = {}; const staffMap = {}; const areaMap = {};
+    const dateKey = getColumnKey(salesRow, ['tanggal', 'waktu']), omsetKey = getColumnKey(salesRow, ['omset', 'klaim']), staffKey = getColumnKey(salesRow, ['karyawan', 'sales']), areaKey = getColumnKey(salesRow, ['area', 'kantor']);
+
+    sales.forEach(row => {
+        let omset = parseOmset(row[omsetKey]), rawDate = row[dateKey];
+        if (rawDate) { let d = new Date(rawDate); if (!isNaN(d.getTime()) && d.getFullYear() > 2010) { trendMap[d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year:'numeric' })] = (trendMap[d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year:'numeric' })] || 0) + omset; } }
+        let staff = row[staffKey]; if(!staff) staff = 'Belum Ada PIC'; staffMap[staff] = (staffMap[staff] || 0) + omset;
+        let area = row[areaKey]; if(!area) area = 'Lainnya'; areaMap[area] = (areaMap[area] || 0) + omset;
+    });
+
+    const sortedDates = Object.keys(trendMap).sort((a, b) => new Date(a) - new Date(b));
+    if(trendChartObj) trendChartObj.destroy();
+    trendChartObj = new Chart(document.getElementById('trendChart'), { type: 'line', data: { labels: sortedDates, datasets: [{ label: 'Total Omset', data: sortedDates.map(d=>trendMap[d]), borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4 }] }, options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: (ctx) => formatRupiah(ctx.raw) } } }, scales: { y: { ticks: { callback: (v) => 'Rp '+(v/1000000)+' Jt' } } } } });
+
+    const sortedStaff = Object.entries(staffMap).sort((a, b) => b[1] - a[1]);
+    if(leaderboardChartObj) leaderboardChartObj.destroy();
+    leaderboardChartObj = new Chart(document.getElementById('leaderboardChart'), { type: 'bar', data: { labels: sortedStaff.map(i=>i[0]), datasets: [{ data: sortedStaff.map(i=>i[1]), backgroundColor: '#8B5CF6', borderRadius: 4 }] }, options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => formatRupiah(ctx.raw) } } }, scales: { x: { ticks: { callback: (v) => (v/1000000)+' Jt' } } } } });
+
+    if(areaChartObj) areaChartObj.destroy();
+    areaChartObj = new Chart(document.getElementById('areaChart'), { type: 'doughnut', data: { labels: Object.keys(areaMap), datasets: [{ data: Object.values(areaMap), backgroundColor: ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#64748B'], borderWidth: 0 }] }, options: { cutout: '65%', maintainAspectRatio: false, plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: (ctx) => ctx.label+': '+formatRupiah(ctx.raw) } } } } });
+}
+
+function renderCRMCharts(crm) {
+  const sList = ['Lead', 'Demo', 'Quotation', 'Paid'];
+  if(funnelChartObj) funnelChartObj.destroy();
+  
+  // BAR CHART: Rasio Aktivitas
+  funnelChartObj = new Chart(document.getElementById('funnelChart'), {
+    type: 'bar', 
+    data: { 
+      labels: sList, 
+      datasets: [{ label: 'Jumlah Merchant', data: sList.map(s => crm.filter(d => d.Status === s).length), backgroundColor: ['#64748B','#8B5CF6','#F59E0B','#10B981'], borderRadius: 6 }] 
+    },
+    options: { plugins: { legend: { display: false } }, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+  });
+
+  // BAR CHART: Kompetitor POS (Diubah dari Pie ke Horizontal Bar)
+  let posCount = {}; 
+  crm.forEach(d => { let p = d['Existing POS']||'Manual'; posCount[p] = (posCount[p]||0)+1; });
+  const sortedPos = Object.entries(posCount).sort((a,b) => b[1] - a[1]); // Sortir terbanyak
+  
+  if(posChartObj) posChartObj.destroy();
+  posChartObj = new Chart(document.getElementById('posChart'), {
+    type: 'bar', 
+    data: { 
+        labels: sortedPos.map(p => p[0]), 
+        datasets: [{ label: 'Pengguna', data: sortedPos.map(p => p[1]), backgroundColor: '#EF4444', borderRadius: 4 }] 
+    },
+    options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
+}
+
+function getStatusBadge(status) {
+    const lower = String(status).toLowerCase();
+    if(lower === 'paid' || lower.includes('won')) return 'b-green';
+    if(lower === 'quotation' || lower.includes('nego')) return 'b-amber';
+    if(lower === 'demo') return 'b-violet';
+    if(lower === 'lost' || lower === 'gagal') return 'b-red';
+    return 'b-brand'; // Default Lead
+}
+
+// KANBAN PREMIUM STYLE
+function renderKanban(crm, areaKey, salesKey) {
+  const stages = [ {k:"Lead", l:"Lead Gen"}, {k:"Demo", l:"Product Demo"}, {k:"Quotation", l:"Negosiasi"}, {k:"Paid", l:"Closed Won"} ];
+  document.getElementById('kanbanBoard').innerHTML = stages.map(s => {
+      let cards = crm.filter(d => d.Status === s.k).map(c => `
+        <div class="kcard">
+            <div class="kcard-title">${c['Nama Merchant']||'Tanpa Nama'}</div>
+            <span class="badge b-muted" style="margin-bottom: 8px;">📍 ${c[areaKey]||'Area Tidak Diketahui'}</span>
+            <div class="kcard-info">
+                <span>👤 ${c[salesKey]||'-'}</span>
+                <span style="font-family: monospace;">POS: ${c['Existing POS']||'Manual'}</span>
+            </div>
+        </div>`).join('');
+      return `<div class="kanban-col">
+                <div class="kanban-col-head"><span>${s.l}</span><span>${crm.filter(d => d.Status === s.k).length}</span></div>
+                ${cards||'<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px 0;">Tidak ada deals</div>'}
+              </div>`;
+  }).join('');
+}
+
+// CRM TABLE PREMIUM STYLE
+function renderCRM(crm, crmDateKey) {
+  document.getElementById('crmBody').innerHTML = crm.map(m => {
+      let rDate = m[crmDateKey], dStr = '-';
+      if (rDate) { let d = new Date(rDate); if (!isNaN(d.getTime()) && d.getFullYear() > 2010) dStr = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }); }
+      
+      return `<tr>
+                <td class="mono">${dStr}</td>
+                <td><strong style="color:var(--paper);">${m['Nama Merchant']||'-'}</strong></td>
+                <td>${m['Business Category']||'-'}</td>
+                <td>${m['Area']||'-'}</td>
+                <td><span class="badge ${getStatusBadge(m.Status)}">${m.Status||'-'}</span></td>
+                <td>${m['Sales']||'-'}</td>
+              </tr>`;
+  }).join('');
+}
+
+function renderMap(crm) {
+  if (!mapObj) {
+    mapObj = L.map('map').setView([-2.5489, 118.0149], 5);
+    // Base tile layer
+    tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(mapObj);
+    markersLayer = L.layerGroup().addTo(mapObj);
+  } else { markersLayer.clearLayers(); }
+
+  let bounds = [];
+  crm.forEach(d => {
+    let lat = parseFloat(d.Latitude); let lng = parseFloat(d.Longitude);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      L.circleMarker([lat, lng], { radius: 7, fillColor: "#3B82F6", color: "#fff", weight: 2, fillOpacity: 0.9 }).bindPopup(`<strong>${d['Nama Merchant']||'-'}</strong><br>Sales: ${d['Sales']||'-'}`).addTo(markersLayer);
+      bounds.push([lat, lng]);
+    }
+  });
+  if(bounds.length > 0) mapObj.fitBounds(bounds, { padding: [30, 30] });
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab === 'activity' && mapObj) setTimeout(() => mapObj.invalidateSize(), 100);
+  });
+});
+
+window.addEventListener('DOMContentLoaded', fetchGoogleSheetsData);
+</script>
+</body>
+</html>
